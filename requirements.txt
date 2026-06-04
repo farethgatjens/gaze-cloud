@@ -1,0 +1,6 @@
+streamlit
+pandas
+firebase-admin
+google-genai
+chromadb
+pydantic<2.0.0
