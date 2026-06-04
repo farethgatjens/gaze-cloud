@@ -4,3 +4,4 @@ google-genai
 chromadb
 pandas
 pydantic
+protobuf<=3.20.3
