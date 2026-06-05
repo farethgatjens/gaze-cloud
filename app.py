@@ -147,7 +147,7 @@ else:
                 
                 with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
                     try:
-                        resp = client.models.generate_content(model='gemini-1.5-flash-latest', contents=prompt)
+                        resp = client.models.generate_content(model='gemini-1.5-flash-002', contents=prompt)
                         st.info(f"*Diagnóstico:*\n\n{resp.text}")
                     except Exception as e:
                         st.error(f"Error de comunicación con Gemini: {e}")
