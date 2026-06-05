@@ -155,7 +155,7 @@ else:
                 
                 with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
                     try:
-                        resp = client.models.generate_content(model='gemini-1.5-flash-8b', contents=prompt)
+                        resp = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
                         st.info(f"*Diagnóstico:*\n\n{resp.text}")
                     except Exception as e:
                         st.error(f"Error de comunicación con Gemini: {e}")
@@ -188,7 +188,7 @@ else:
                     hist = "\n".join([d.to_dict().get('falla', '') for d in docs])
                     
                     if hist.strip():
-                        resp = client.models.generate_content(model='gemini-1.5-flash-8b', contents=f"Actúa como un experto en mantenimiento predictivo. Analiza estas tendencias de falla y dame un pronóstico de qué podría romperse pronto y cómo prevenirlo: {hist}")
+                        resp = client.models.generate_content(model='gemini-2.5-flash', contents=f"Actúa como un experto en mantenimiento predictivo. Analiza estas tendencias de falla y dame un pronóstico de qué podría romperse pronto y cómo prevenirlo: {hist}")
                         st.info(resp.text)
                     else:
                         st.warning("No hay suficientes datos en el historial para hacer un pronóstico.")
