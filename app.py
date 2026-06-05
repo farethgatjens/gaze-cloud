@@ -1,7 +1,7 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
-from google import generativeai as genai
+from google import genai
 import os
 import chromadb
 from chromadb.utils import embedding_functions
