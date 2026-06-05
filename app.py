@@ -1,20 +1,22 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
+from google import genai
 import os
 import json
+from google.oauth2 import service_account
 import chromadb
 from chromadb.utils import embedding_functions
 import pandas as pd
-from google.oauth2 import service_account
-import google.generativeai as genai
 
 # --- INICIALIZACIÓN DE FIREBASE (Modo Ultra Robusto) ---
 if not firebase_admin._apps:
     try:
+        # Prioridad 1: Intenta cargar el archivo físico que creaste
         if os.path.exists("firebase_key.json"):
             cred = credentials.Certificate("firebase_key.json")
         else:
+            # Prioridad 2: Fallback a los secrets (SIN json.loads)
             cred_dict = dict(st.secrets["FIREBASE_KEY"])
             cred = credentials.Certificate(cred_dict)
             
@@ -27,14 +29,22 @@ try:
 except Exception as e:
     st.error(f"🚨 Error al conectar con la base de datos Firestore: {e}")
 
-# --- INICIALIZACIÓN DE GEMINI (Mejora con JSON de cuenta de servicio) ---
+# --- INICIALIZACIÓN DE GEMINI (Adaptada para JSON en Secrets) ---
 try:
-    creds_dict = json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS_JSON"])
+    # Obtenemos el JSON desde los secrets
+    raw_json = st.secrets["GOOGLE_APPLICATION_CREDENTIALS_JSON"]
+    
+    # Convertimos el string a diccionario
+    creds_dict = json.loads(raw_json)
+    
+    # Creamos las credenciales
     creds = service_account.Credentials.from_service_account_info(creds_dict)
-    genai.configure(credentials=creds)
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    
+    # Inicializamos el cliente pasando las credenciales
+    client = genai.Client(credentials=creds)
+    
 except Exception as e:
-    st.error(f"🚨 Error al cargar la API de Google Gemini: {e}")
+    st.error(f"🚨 Error al configurar la autenticación de Gemini: {e}")
 
 # --- CONFIGURACIÓN DE CHROMA Y SESIÓN ---
 chroma_client = chromadb.PersistentClient(path="./base_datos_gaze")
@@ -42,10 +52,6 @@ ef = embedding_functions.DefaultEmbeddingFunction()
 
 if 'user_info' not in st.session_state: 
     st.session_state.user_info = None
-
-# Inicialización de memoria para el chat
-if "chat_session" not in st.session_state:
-    st.session_state.chat_session = model.start_chat(history=[])
 
 def registrar_usuario(email, password, nombre, empresa_id):
     try:
@@ -107,10 +113,10 @@ else:
     st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
     if st.sidebar.button("Cerrar Sesión"): 
         st.session_state.user_info = None
-        st.session_state.chat_session = None # Limpiar chat al salir
         st.rerun()
 
     menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial"]
+    
     if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": 
         menu.append("Admin Console")
         
@@ -135,22 +141,25 @@ else:
         if st.button("Generar Diagnóstico"):
             if pregunta:
                 ctx = buscar_relevante(pregunta)
+                
                 personalidad = """
                 Eres GAZE AI, una inteligencia artificial que ha vivido 5 vidas diferentes. 
                 En cada una fuiste un técnico experto e intelectual que resolvió fallas críticas 
                 en oficinas y grandes empresas. 
+                
                 TU MÉTODO DE TRABAJO:
                 Ante cualquier problema, antes de dar una respuesta definitiva, debes repetir 
                 tu proceso de pensamiento 5 veces, proyectando posibilidades, escenarios 
                 y soluciones alternativas basándote en tu vasta experiencia en esas 5 vidas.
+                
                 Responde siempre con este análisis previo profundo.
                 """
+                
                 prompt = f"{personalidad}\n\nContexto industrial disponible: {ctx}.\n\nConsulta del usuario: {pregunta}"
                 
                 with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
                     try:
-                        # Usamos la sesión con memoria
-                        resp = st.session_state.chat_session.send_message(prompt)
+                        resp = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
                         st.info(f"*Diagnóstico:*\n\n{resp.text}")
                     except Exception as e:
                         st.error(f"Error de comunicación con Gemini: {e}")
@@ -163,6 +172,7 @@ else:
         try:
             docs = db.collection(st.session_state.empresa).order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
             res = [d.to_dict() for d in docs if (busq.lower() in str(d.to_dict()).lower())]
+            
             if res:
                 df = pd.DataFrame(res)
                 st.download_button("📥 Descargar CSV", df.to_csv(index=False).encode('utf-8'), 'reportes.csv')
@@ -180,11 +190,12 @@ else:
                 try:
                     docs = db.collection(st.session_state.empresa).limit(40).stream()
                     hist = "\n".join([d.to_dict().get('falla', '') for d in docs])
+                    
                     if hist.strip():
-                        resp = model.generate_content(f"Actúa como un experto en mantenimiento predictivo. Analiza estas tendencias de falla y dame un pronóstico: {hist}")
+                        resp = client.models.generate_content(model='gemini-2.0-flash', contents=f"Actúa como un experto en mantenimiento predictivo. Analiza estas tendencias de falla y dame un pronóstico de qué podría romperse pronto y cómo prevenirlo: {hist}")
                         st.info(resp.text)
                     else:
-                        st.warning("No hay suficientes datos.")
+                        st.warning("No hay suficientes datos en el historial para hacer un pronóstico.")
                 except Exception as e:
                     st.error(f"Error al generar el pronóstico: {e}")
 
@@ -195,12 +206,16 @@ else:
             id_e = st.text_input("ID de la Empresa (sin espacios)")
             email_adm = st.text_input("Email del Administrador")
             pw_adm = st.text_input("Contraseña Temporal", type="password")
+            
             if st.form_submit_button("Dar de Alta Empresa"):
                 try:
                     user = auth.create_user(email=email_adm, password=pw_adm)
                     db.collection("usuarios").document(user.uid).set({
-                        "nombre": "Admin " + empresa_nombre, "email": email_adm, 
-                        "empresa_id": id_e.replace(" ", "_").lower(), "rol": "admin"
+                        "nombre": "Admin " + empresa_nombre, 
+                        "email": email_adm, 
+                        "empresa_id": id_e.replace(" ", "_").lower(), 
+                        "rol": "admin"
                     })
-                    st.success("Empresa creada correctamente.")
-                except Exception as e: st.error(f"Error: {e}")
+                    st.success(f"Empresa '{empresa_nombre}' y administrador creados correctamente.")
+                except Exception as e: 
+                    st.error(f"Error al crear la empresa: {e}")
