@@ -1,6 +1,6 @@
 streamlit
 firebase-admin
-google-generativeai
+google-genai
 google-auth
 chromadb
 pandas
