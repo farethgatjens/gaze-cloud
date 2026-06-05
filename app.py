@@ -85,7 +85,7 @@ if not st.session_state.user_info:
             else:
                 st.warning("Credenciales incorrectas o usuario no encontrado.")
         except Exception as e:
-            st.error(f"Error al intentar iniciar sesión: {e}"
+            st.error(f"Error al intentar iniciar sesión: {e}")
 else:
     nombre_col = f"historia_{st.session_state.empresa}"
     collection = chroma_client.get_or_create_collection(name=nombre_col, embedding_function=ef)
