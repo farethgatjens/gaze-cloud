@@ -16,8 +16,9 @@ if not firebase_admin._apps:
         if os.path.exists("firebase_key.json"):
             cred = credentials.Certificate("firebase_key.json")
         else:
-            # Prioridad 2: Fallback a los secrets (SIN json.loads)
-            cred_dict = dict(st.secrets["FIREBASE_KEY"])
+            # Prioridad 2: Leemos el texto de los secrets y lo convertimos (Igual que Gemini)
+            raw_fb = st.secrets["FIREBASE_KEY_JSON"]
+            cred_dict = json.loads(raw_fb)
             cred = credentials.Certificate(cred_dict)
             
         firebase_admin.initialize_app(cred)
@@ -117,7 +118,7 @@ else:
 
     menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial"]
     
-    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": 
+    if st.session_state.user_info.get('email') == "tu_correo@gaze.com": 
         menu.append("Admin Console")
         
     opcion = st.sidebar.selectbox("Panel de Control", menu)
