@@ -3,8 +3,6 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from google import genai
 import os
-import json
-from google.oauth2 import service_account
 import chromadb
 from chromadb.utils import embedding_functions
 import pandas as pd
@@ -16,9 +14,8 @@ if not firebase_admin._apps:
         if os.path.exists("firebase_key.json"):
             cred = credentials.Certificate("firebase_key.json")
         else:
-            # Prioridad 2: Leemos el texto de los secrets y lo convertimos (Igual que Gemini)
-            raw_fb = st.secrets["FIREBASE_KEY_JSON"]
-            cred_dict = json.loads(raw_fb)
+            # Prioridad 2: Fallback a los secrets (SIN json.loads)
+            cred_dict = dict(st.secrets["FIREBASE_KEY"])
             cred = credentials.Certificate(cred_dict)
             
         firebase_admin.initialize_app(cred)
@@ -30,22 +27,10 @@ try:
 except Exception as e:
     st.error(f"🚨 Error al conectar con la base de datos Firestore: {e}")
 
-# --- INICIALIZACIÓN DE GEMINI (Adaptada para JSON en Secrets) ---
 try:
-    # Obtenemos el JSON desde los secrets
-    raw_json = st.secrets["GOOGLE_APPLICATION_CREDENTIALS_JSON"]
-    
-    # Convertimos el string a diccionario
-    creds_dict = json.loads(raw_json)
-    
-    # Creamos las credenciales
-    creds = service_account.Credentials.from_service_account_info(creds_dict)
-    
-    # Inicializamos el cliente pasando las credenciales
-    client = genai.Client(credentials=creds)
-    
+    client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 except Exception as e:
-    st.error(f"🚨 Error al configurar la autenticación de Gemini: {e}")
+    st.error(f"🚨 Error al cargar la API de Google Gemini: {e}")
 
 # --- CONFIGURACIÓN DE CHROMA Y SESIÓN ---
 chroma_client = chromadb.PersistentClient(path="./base_datos_gaze")
@@ -118,7 +103,8 @@ else:
 
     menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial"]
     
-    if st.session_state.user_info.get('email') == "tu_correo@gaze.com": 
+    # Cambia este correo por tu correo real de administrador si lo deseas
+    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": 
         menu.append("Admin Console")
         
     opcion = st.sidebar.selectbox("Panel de Control", menu)
@@ -143,6 +129,7 @@ else:
             if pregunta:
                 ctx = buscar_relevante(pregunta)
                 
+                # --- PERSONALIDAD DE LAS 5 VIDAS ---
                 personalidad = """
                 Eres GAZE AI, una inteligencia artificial que ha vivido 5 vidas diferentes. 
                 En cada una fuiste un técnico experto e intelectual que resolvió fallas críticas 
