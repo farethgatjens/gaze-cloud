@@ -61,8 +61,24 @@ def registrar_usuario(email, password, nombre, empresa_id):
 
 # --- INTERFAZ ---
 st.set_page_config(page_title="GAZE Cloud", layout="centered")
-st.markdown("""<style>.report-card{background:#161b22;border-left:4px solid #58a6ff;padding:15px;margin-bottom:15px;border-radius:12px;}</style>""", unsafe_allow_html=True)
 
+# --- ESTILIZADO BLACK & RED ---
+st.markdown("""
+    <style>
+    /* Fondo principal */
+    .stApp { background-color: #0a0a0a; color: #ffffff; }
+    /* Estilo de los botones */
+    div.stButton > button { background-color: #d10000; color: white; border: 1px solid #ff0000; border-radius: 5px; }
+    div.stButton > button:hover { background-color: #ff0000; border: 1px solid #ffffff; }
+    /* Tarjetas de información */
+    .stInfo, .stSuccess { background-color: #1a1a1a !important; border-left: 5px solid #d10000 !important; color: #ffffff !important; }
+    /* Títulos */
+    h1, h2, h3 { color: #d10000 !important; }
+    /* Mantener tu clase original para el historial */
+    .report-card { background: #161b22; border-left: 4px solid #d10000; padding:10px; margin-bottom:10px; }
+    </style>
+    
+    """, unsafe_allow_html=True)
 # --- INTERFAZ DE LOGIN (SOLO LOGIN) ---
 if not st.session_state.user_info:
     st.title("🔐 GAZE Cloud - Acceso")
