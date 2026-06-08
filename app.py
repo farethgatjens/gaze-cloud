@@ -129,7 +129,7 @@ else:
                 
                 with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
                     try:
-                        resp = client.models.generate_content(model='gemini-1.5-pro', contents=prompt)
+                        resp = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
                         st.session_state.historial_chat.append(f"Técnico: {pregunta}")
                         st.session_state.historial_chat.append(f"GAZE AI: {resp.text}")
                         st.rerun()
@@ -157,7 +157,7 @@ else:
         if st.button("Ejecutar Pronóstico"):
             docs = db.collection(st.session_state.empresa).limit(20).stream()
             hist = "\n".join([d.to_dict().get('falla', '') for d in docs])
-            resp = client.models.generate_content(model='gemini-1.5-flash', contents=f"Analiza: {hist}")
+            resp = client.models.generate_content(model='gemini-2.5-flash', contents=f"Analiza: {hist}")
             st.info(resp.text)
 
     elif opcion == "📁 Repositorio Empresarial":
