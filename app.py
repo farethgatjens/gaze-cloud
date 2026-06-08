@@ -99,7 +99,7 @@ else:
             st.success("Reporte procesado.")
 
     
-elif opcion == "Consultar IA":
+    elif opcion == "Consultar IA":
         st.header("🧠 Consulta GAZE AI")
         if "historial_chat" not in st.session_state: st.session_state.historial_chat = []
         
