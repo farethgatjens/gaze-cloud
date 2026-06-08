@@ -113,17 +113,17 @@ else:
         res = collection.query(query_texts=[query], n_results=3)
         return "\n".join(res['documents'][0]) if res['documents'][0] else "No hay historial."
 
-    st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
-    if st.sidebar.button("Cerrar Sesión"): 
-        st.session_state.user_info = None
-        st.rerun()
+        st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
+        if st.sidebar.button("Cerrar Sesión"): 
+            st.session_state.user_info = None
+            st.rerun()
 
-menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
-    
-    # Cambia este correo por tu correo real de administrador si lo deseas
-    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
+    menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
         
-    opcion = st.sidebar.selectbox("Panel de Control", menu)
+        # Cambia este correo por tu correo real de administrador si lo deseas
+        if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
+            
+        opcion = st.sidebar.selectbox("Panel de Control", menu)
 
     if opcion == "Registrar Falla":
         st.header("📝 Nuevo Reporte")
