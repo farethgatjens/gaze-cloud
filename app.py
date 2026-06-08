@@ -120,8 +120,8 @@ else:
 
     menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
         
-    # Cambia este correo por tu correo real de administrador si lo deseas
-    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
+    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": 
+        menu.append("Admin Console")
             
     opcion = st.sidebar.selectbox("Panel de Control", menu)
 
@@ -140,147 +140,96 @@ else:
 
     elif opcion == "Consultar IA":
         st.header("🧠 Consulta GAZE AI")
-        
-        # --- INICIALIZAR MEMORIA DEL CHAT ---
         if "historial_chat" not in st.session_state:
             st.session_state.historial_chat = []
 
         pregunta = st.text_input("¿Qué necesitas resolver o analizar?")
-        
         col1, col2 = st.columns([1, 1])
         with col1:
             if st.button("Generar Diagnóstico / Enviar"):
                 if pregunta:
                     ctx = buscar_relevante(pregunta)
                     conversacion_previa = "\n".join(st.session_state.historial_chat[-6:])
-                    
                     prompt = f"""
                     Eres GAZE AI, consultor experto en mantenimiento. 
-                    Tienes memoria de esta conversación y acceso al historial de la empresa.
-
-                    REGLAS INNEGOCIABLES:
-                    1. Si el contexto de la empresa tiene información útil, úsala.
-                    2. Estructura siempre tu respuesta:
-                       📌 Análisis de Reportes Previos: (Menciona reportes si los hay)
-                       💡 Diagnóstico de GAZE: (Tu análisis)
-                       🛠️ Soluciones y Apoyo: (Pasos recomendados)
-
-                    Contexto Industrial:
-                    {ctx}
-
-                    Conversación previa:
-                    {conversacion_previa}
-
-                    Nueva pregunta: {pregunta}
+                    REGLAS: Usa el contexto si es útil. 
+                    Contexto Industrial: {ctx}
+                    Conversación previa: {conversacion_previa}
+                    Pregunta: {pregunta}
                     """
-
-                    with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
+                    with st.spinner("GAZE AI analizando..."):
                         try:
                             resp = client.models.generate_content(model='gemini-1.5-pro', contents=prompt)
                             st.session_state.historial_chat.append(f"Técnico: {pregunta}")
                             st.session_state.historial_chat.append(f"GAZE AI: {resp.text}")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error de comunicación con Gemini: {e}")
+                            st.error(f"Error: {e}")
         with col2:
-            if st.button("Cerrar Chat (Limpiar Memoria)"):
+            if st.button("Cerrar Chat"):
                 st.session_state.historial_chat = []
                 st.rerun()
 
-        # --- MOSTRAR EL CHAT Y BOTÓN DE APRENDIZAJE ---
-        st.markdown("### 💬 Historial de la Conversación")
         for i, mensaje in enumerate(st.session_state.historial_chat):
-            if mensaje.startswith("Técnico:"):
-                st.info(mensaje)
+            if mensaje.startswith("Técnico:"): st.info(mensaje)
             else:
                 st.success(mensaje)
-                if st.button("Guardar esta solución en el historial", key=f"guardar_ai_{i}"):
+                if st.button("Guardar solución", key=f"guardar_ai_{i}"):
                     guardar_en_vector(mensaje, f"IA_SOLUCION_{i}") 
-                    st.toast("¡Solución aprendida por GAZE!")
+                    st.toast("¡Solución aprendida!")
 
     elif opcion == "Ver Historial":
         st.header("🌐 Historial")
-        busq = st.text_input("Buscar (deja en blanco para ver todo):")
+        busq = st.text_input("Buscar:")
         try:
             docs = db.collection(st.session_state.empresa).order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
             res = [d.to_dict() for d in docs if (busq.lower() in str(d.to_dict()).lower())]
-            
             if res:
                 df = pd.DataFrame(res)
                 st.download_button("📥 Descargar CSV", df.to_csv(index=False).encode('utf-8'), 'reportes.csv')
                 for d in res[:50]:
                     st.markdown(f"<div class='report-card'><b>Técnico: {d.get('trabajador', 'Desconocido')}</b><br>{d.get('falla', 'Sin detalles')}</div>", unsafe_allow_html=True)
-            else:
-                st.info("No hay reportes que coincidan con la búsqueda.")
         except Exception as e:
-            st.error(f"Error al cargar el historial: {e}")
+            st.error(f"Error: {e}")
 
     elif opcion == "Análisis Predictivo":
         st.header("🔮 Oráculo de Gaze")
         if st.button("Pronosticar"):
-            with st.spinner("Analizando tendencias de fallas..."):
+            with st.spinner("Analizando tendencias..."):
                 try:
                     docs = db.collection(st.session_state.empresa).limit(40).stream()
                     hist = "\n".join([d.to_dict().get('falla', '') for d in docs])
-                    
                     if hist.strip():
-                        resp = client.models.generate_content(model='gemini-2.5-flash', contents=f"Actúa como un experto en mantenimiento predictivo. Analiza estas tendencias de falla y dame un pronóstico de qué podría romperse pronto y cómo prevenirlo: {hist}")
+                        resp = client.models.generate_content(model='gemini-1.5-flash', contents=f"Analiza estas fallas y dame un pronóstico: {hist}")
                         st.info(resp.text)
-                    else:
-                        st.warning("No hay suficientes datos en el historial para hacer un pronóstico.")
+                    else: st.warning("No hay suficientes datos.")
                 except Exception as e:
-                    st.error(f"Error al generar el pronóstico: {e}")
+                    st.error(f"Error: {e}")
 
-elif opcion == "📁 Repositorio Empresarial":
+    elif opcion == "📁 Repositorio Empresarial":
         st.header("📁 Repositorio Digital y Asistente Documental")
-        st.write("Espacio exclusivo para empresarios: Sube documentos oficiales, manuales o instaladores.")
-
-        archivo_subido = st.file_uploader("Selecciona el archivo para la empresa", type=["pdf", "docx", "txt", "exe"])
-        descripcion = st.text_area("Añade una descripción o nota sobre este archivo para la IA:")
-
+        archivo_subido = st.file_uploader("Selecciona el archivo", type=["pdf", "docx", "txt", "exe"])
+        descripcion = st.text_area("Descripción:")
         if st.button("Guardar en Repositorio"):
             if archivo_subido:
-                nombre_archivo = archivo_subido.name
-                with st.spinner("Registrando archivo en el sistema de la empresa..."):
-                    # Simulamos la subida de almacenamiento y alimentamos el cerebro
-                    nota_para_ia = f"Documento Empresarial: {nombre_archivo}. Descripción: {descripcion}"
-                    guardar_en_vector(nota_para_ia, f"DOC_{nombre_archivo}")
-                    st.success(f"¡Archivo '{nombre_archivo}' y su contexto guardados con éxito!")
-            else:
-                st.warning("Por favor, selecciona un archivo primero.")
-
-        st.markdown("---")
-        st.subheader("🤖 Consultar Asistente de Gerencia")
-        pregunta_empresario = st.text_input("Hazle una pregunta a la IA sobre los manuales o archivos de la empresa:")
+                guardar_en_vector(f"Doc: {archivo_subido.name}. Desc: {descripcion}", f"DOC_{archivo_subido.name}")
+                st.success("Guardado con éxito")
         
+        st.markdown("---")
+        pregunta_empresario = st.text_input("Pregunta al asistente de gerencia:")
         if st.button("Consultar Repositorio"):
             if pregunta_empresario:
-                ctx_empresarial = buscar_relevante(pregunta_empresario)
-                prompt_gerencia = f"""
-                Eres el Asistente de Gerencia de GAZE AI.
-                Responde a la pregunta del empresario basándote ÚNICAMENTE en este contexto corporativo:
-                Contexto: {ctx_empresarial}
-                Pregunta: {pregunta_empresario}
-                """
-                with st.spinner("GAZE AI analizando los documentos corporativos..."):
-                    try:
-                        resp_gerencia = client.models.generate_content(model='gemini-1.5-pro', contents=prompt_gerencia)
-                        st.write(resp_gerencia.text)
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-                        
-if opcion == "Admin Console":
-        # Verificación de seguridad extra
+                ctx = buscar_relevante(pregunta_empresario)
+                resp = client.models.generate_content(model='gemini-1.5-pro', contents=f"Contexto: {ctx}. Pregunta: {pregunta_empresario}")
+                st.write(resp.text)
+
+    elif opcion == "Admin Console":
         if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
             st.header("🛠️ Admin Console")
             with st.form("admin_form"):
                 empresa_nombre = st.text_input("Nombre de la Empresa")
-                id_e = st.text_input("ID de la Empresa (sin espacios)")
-                email_adm = st.text_input("Email del Administrador")
-                pw_adm = st.text_input("Contraseña Temporal", type="password")
-                
+                id_e = st.text_input("ID de la Empresa")
                 if st.form_submit_button("Dar de Alta Empresa"):
-                    # Tu lógica de creación aquí...
-                    st.success("Empresa creada.")                                        
-else:
-        st.error("⛔ Acceso denegado. Solo el administrador principal puede ver esta sección.")
+                    st.success("Empresa creada.")
+        else:
+            st.error("⛔ Acceso denegado.")
