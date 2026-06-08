@@ -229,7 +229,12 @@ else:
             with st.form("admin_form"):
                 empresa_nombre = st.text_input("Nombre de la Empresa")
                 id_e = st.text_input("ID de la Empresa")
+                # Añadimos los campos que faltaban:
+                email_adm = st.text_input("Email del Administrador")
+                pw_adm = st.text_input("Contraseña Temporal", type="password")
+                
                 if st.form_submit_button("Dar de Alta Empresa"):
+                    # Tu lógica de creación aquí...
                     st.success("Empresa creada.")
         else:
             st.error("⛔ Acceso denegado.")
