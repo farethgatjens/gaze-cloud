@@ -231,56 +231,56 @@ else:
                 except Exception as e:
                     st.error(f"Error al generar el pronóstico: {e}")
 
-    if opcion == "📁 Repositorio Empresarial":
-            st.header("📁 Repositorio Digital y Asistente Documental")
-            st.write("Espacio exclusivo para empresarios: Sube documentos oficiales, manuales o instaladores.")
+if opcion == "📁 Repositorio Empresarial":
+        st.header("📁 Repositorio Digital y Asistente Documental")
+        st.write("Espacio exclusivo para empresarios: Sube documentos oficiales, manuales o instaladores.")
 
-            archivo_subido = st.file_uploader("Selecciona el archivo para la empresa", type=["pdf", "docx", "txt", "exe"])
-            descripcion = st.text_area("Añade una descripción o nota sobre este archivo para la IA:")
+        archivo_subido = st.file_uploader("Selecciona el archivo para la empresa", type=["pdf", "docx", "txt", "exe"])
+        descripcion = st.text_area("Añade una descripción o nota sobre este archivo para la IA:")
 
-            if st.button("Guardar en Repositorio"):
-                if archivo_subido:
-                    nombre_archivo = archivo_subido.name
-                    with st.spinner("Registrando archivo en el sistema de la empresa..."):
-                        # Simulamos la subida de almacenamiento y alimentamos el cerebro
-                        nota_para_ia = f"Documento Empresarial: {nombre_archivo}. Descripción: {descripcion}"
-                        guardar_en_vector(nota_para_ia, f"DOC_{nombre_archivo}")
-                        st.success(f"¡Archivo '{nombre_archivo}' y su contexto guardados con éxito!")
-                else:
-                    st.warning("Por favor, selecciona un archivo primero.")
+        if st.button("Guardar en Repositorio"):
+            if archivo_subido:
+                nombre_archivo = archivo_subido.name
+                with st.spinner("Registrando archivo en el sistema de la empresa..."):
+                    # Simulamos la subida de almacenamiento y alimentamos el cerebro
+                    nota_para_ia = f"Documento Empresarial: {nombre_archivo}. Descripción: {descripcion}"
+                    guardar_en_vector(nota_para_ia, f"DOC_{nombre_archivo}")
+                    st.success(f"¡Archivo '{nombre_archivo}' y su contexto guardados con éxito!")
+            else:
+                st.warning("Por favor, selecciona un archivo primero.")
 
-            st.markdown("---")
-            st.subheader("🤖 Consultar Asistente de Gerencia")
-            pregunta_empresario = st.text_input("Hazle una pregunta a la IA sobre los manuales o archivos de la empresa:")
-            
-            if st.button("Consultar Repositorio"):
-                if pregunta_empresario:
-                    ctx_empresarial = buscar_relevante(pregunta_empresario)
-                    prompt_gerencia = f"""
-                    Eres el Asistente de Gerencia de GAZE AI.
-                    Responde a la pregunta del empresario basándote ÚNICAMENTE en este contexto corporativo:
-                    Contexto: {ctx_empresarial}
-                    Pregunta: {pregunta_empresario}
-                    """
-                    with st.spinner("GAZE AI analizando los documentos corporativos..."):
-                        try:
-                            resp_gerencia = client.models.generate_content(model='gemini-1.5-pro', contents=prompt_gerencia)
-                            st.write(resp_gerencia.text)
-                        except Exception as e:
-                            st.error(f"Error: {e}")
-                            s
-        if opcion == "Admin Console":
-            # Verificación de seguridad extra
-            if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
-                st.header("🛠️ Admin Console")
-                with st.form("admin_form"):
-                    empresa_nombre = st.text_input("Nombre de la Empresa")
-                    id_e = st.text_input("ID de la Empresa (sin espacios)")
-                    email_adm = st.text_input("Email del Administrador")
-                    pw_adm = st.text_input("Contraseña Temporal", type="password")
-                    
-                    if st.form_submit_button("Dar de Alta Empresa"):
-                        # Tu lógica de creación aquí...
-                        st.success("Empresa creada.")
-        else:
-            st.error("⛔ Acceso denegado. Solo el administrador principal puede ver esta sección.")
+        st.markdown("---")
+        st.subheader("🤖 Consultar Asistente de Gerencia")
+        pregunta_empresario = st.text_input("Hazle una pregunta a la IA sobre los manuales o archivos de la empresa:")
+        
+        if st.button("Consultar Repositorio"):
+            if pregunta_empresario:
+                ctx_empresarial = buscar_relevante(pregunta_empresario)
+                prompt_gerencia = f"""
+                Eres el Asistente de Gerencia de GAZE AI.
+                Responde a la pregunta del empresario basándote ÚNICAMENTE en este contexto corporativo:
+                Contexto: {ctx_empresarial}
+                Pregunta: {pregunta_empresario}
+                """
+                with st.spinner("GAZE AI analizando los documentos corporativos..."):
+                    try:
+                        resp_gerencia = client.models.generate_content(model='gemini-1.5-pro', contents=prompt_gerencia)
+                        st.write(resp_gerencia.text)
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                        s
+if opcion == "Admin Console":
+        # Verificación de seguridad extra
+        if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
+            st.header("🛠️ Admin Console")
+            with st.form("admin_form"):
+                empresa_nombre = st.text_input("Nombre de la Empresa")
+                id_e = st.text_input("ID de la Empresa (sin espacios)")
+                email_adm = st.text_input("Email del Administrador")
+                pw_adm = st.text_input("Contraseña Temporal", type="password")
+                
+                if st.form_submit_button("Dar de Alta Empresa"):
+                    # Tu lógica de creación aquí...
+                    st.success("Empresa creada.")
+    else:
+        st.error("⛔ Acceso denegado. Solo el administrador principal puede ver esta sección.")
