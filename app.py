@@ -89,7 +89,7 @@ else:
     def guardar_en_vector(texto, id_unico): 
         # Usamos Gemini para convertir el texto a números
         respuesta = client.models.embed_content(
-            model="text-embedding-004", 
+            model="text-embedding-001", 
             contents=texto
         )
         embedding = respuesta.embeddings[0].values
@@ -108,7 +108,7 @@ else:
     def buscar_relevante(query): 
         # Convertimos la pregunta de la IA a números para buscar
         respuesta = client.models.embed_content(
-            model="text-embedding-004", 
+            model="text-embedding-001", 
             contents=query
         )
         vector_pregunta = respuesta.embeddings[0].values
