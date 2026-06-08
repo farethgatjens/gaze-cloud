@@ -1,14 +1,17 @@
-import streamlit as st
+)import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
 from google import genai
 import os
-import chromadb
-from chromadb.utils import embedding_functions
 import pandas as pd
+from pinecone import Pinecone 
 
 # --- INICIALIZACIÓN ---
 client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
+
+# Inicializar Pinecone (Reemplaza a ChromaDB)
+pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
+index = pc.Index("gaze-db")
 
 if not firebase_admin._apps:
     try:
@@ -22,8 +25,6 @@ if not firebase_admin._apps:
         st.error(f"🚨 Error crítico al inicializar Firebase: {e}")
 
 db = firestore.client()
-chroma_client = chromadb.PersistentClient(path="./base_datos_gaze")
-ef = embedding_functions.DefaultEmbeddingFunction()
 
 if 'user_info' not in st.session_state: 
     st.session_state.user_info = None
@@ -34,11 +35,8 @@ st.markdown("""
     <style>
     .stApp { background-color: #050505; color: #e0e0e0; }
     .glass-card {
-        background-color: #121212;
-        padding: 30px;
-        border-radius: 15px;
-        border: 1px solid #2b2b2b;
-        box-shadow: 0 8px 32px 0 rgba(209, 0, 0, 0.15);
+        background-color: #121212; padding: 30px; border-radius: 15px;
+        border: 1px solid #2b2b2b; box-shadow: 0 8px 32px 0 rgba(209, 0, 0, 0.15);
     }
     div.stButton > button { 
         background-color: #d10000; color: white; border: none; 
@@ -47,8 +45,22 @@ st.markdown("""
     div.stButton > button:hover { background-color: #ff0000; transform: translateY(-2px); }
     h1, h2, h3 { color: #d10000 !important; }
     .report-card { background: #161b22; border-left: 4px solid #d10000; padding:15px; margin-bottom:10px; border-radius: 5px; }
+    
+    /* ESTILO PARA EL CHAT DEL USUARIO */
+    .user-msg {
+        background-color: #1e1e1e; padding: 15px; border-radius: 10px;
+        border-left: 4px solid #888888; margin-bottom: 15px; color: white;
+    }
+    /* EL ROJO BRILLANTE DE GAZE */
+    .gaze-bot {
+        background-color: #0a0000; padding: 20px; border-radius: 10px;
+        border: 1px solid #ff0000; 
+        box-shadow: 0 0 15px 2px rgba(255, 0, 0, 0.4); 
+        margin-bottom: 15px; color: #f0f0f0;
+    }
     </style>
     """, unsafe_allow_html=True)
+
 
 # --- LOGIN ---
 if not st.session_state.user_info:
@@ -69,14 +81,41 @@ if not st.session_state.user_info:
 
 # --- PANEL PRINCIPAL ---
 else:
-    nombre_col = f"historia_{st.session_state.empresa}"
-    collection = chroma_client.get_or_create_collection(name=nombre_col, embedding_function=ef)
+   
+    # ---------------------------------------------------------
+    # MEMORIA VECTORIAL (PINECONE - SERVERLESS INTEGRATED)
+    # ---------------------------------------------------------
+    
+    def guardar_en_vector(texto, id_unico): 
+        # Pinecone convierte el texto a vector automáticamente gracias a la configuración de NVIDIA
+        index.upsert(
+            vectors=[{
+                "id": id_unico, 
+                "metadata": {
+                    "empresa": st.session_state.empresa, 
+                    "text": texto 
+                }
+            }]
+        )
 
-    def guardar_en_vector(texto, id_unico): collection.add(documents=[texto], ids=[id_unico])
     def buscar_relevante(query): 
-        res = collection.query(query_texts=[query], n_results=3)
-        return "\n".join(res['documents'][0]) if res['documents'][0] else "No hay historial."
+        # Pinecone realiza la búsqueda semántica directamente sobre el texto ingresado
+        resultados = index.query(
+            vector=None, 
+            top_k=3,
+            include_metadata=True,
+            filter={"empresa": {"$eq": st.session_state.empresa}},
+            namespace="",
+            input=query 
+        )
+        
+        if resultados['matches']:
+            # Extraemos el texto de los resultados
+            contextos = [match['metadata']['text'] for match in resultados['matches']]
+            return "\n".join(contextos)
+        return "No hay historial."
 
+    # --- BARRA LATERAL ---
     st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
     if st.sidebar.button("Cerrar Sesión"): 
         st.session_state.user_info = None
@@ -96,61 +135,121 @@ else:
             ref = db.collection(st.session_state.empresa).document()
             ref.set({"trabajador": nombre_tecnico, "falla": falla, "timestamp": firestore.SERVER_TIMESTAMP})
             guardar_en_vector(falla, ref.id)
-            st.success("Reporte procesado.")
+            st.success("Reporte procesado y guardado en la memoria permanente.")
 
-    
     elif opcion == "Consultar IA":
         st.header("🧠 Consulta GAZE AI")
-        if "historial_chat" not in st.session_state: st.session_state.historial_chat = []
         
-        pregunta = st.text_input("¿Qué necesitas resolver o analizar?")
-        if st.button("Generar Diagnóstico / Enviar"):
-            if pregunta:
-                ctx = buscar_relevante(pregunta)
-                conversacion_previa = "\n".join(st.session_state.historial_chat[-6:])
-                
-                # --- RECUPERANDO EL RAZONAMIENTO EXPERTO ---
-                prompt = f"""
-                Eres GAZE AI, consultor experto en mantenimiento,empresario,accesor,secretario. 
-                Tienes memoria de esta conversación y acceso al historial de la empresa.
-
-
-                REGLAS INNEGOCIABLES:
-                1. Si el contexto de la empresa tiene información útil, úsala.
-                2. Estructura siempre tu respuesta:
-                   📌 Análisis de Reportes Previos: (Menciona reportes si los hay)
-                   💡 Diagnóstico de GAZE: (Tu análisis)
-                   🛠️ Soluciones y Apoyo: (Pasos recomendados)
-
-                Contexto Industrial: {ctx}
-                Conversación previa: {conversacion_previa}
-                Nueva pregunta: {pregunta}
-                """
-                
-                with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
-                    try:
-                        resp = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-                        st.session_state.historial_chat.append(f"Técnico: {pregunta}")
-                        st.session_state.historial_chat.append(f"GAZE AI: {resp.text}")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+        if "historial_chat" not in st.session_state: 
+            st.session_state.historial_chat = []
         
-        # Mostrar historial con estilos
         for i, mensaje in enumerate(st.session_state.historial_chat):
-            if mensaje.startswith("Técnico:"): st.info(mensaje)
-            else:
-                st.success(mensaje)
-                if st.button("Guardar solución", key=f"guardar_ai_{i}"):
-                    guardar_en_vector(mensaje, f"IA_SOLUCION_{i}") 
-                    st.toast("¡Solución aprendida!")
+            if mensaje.startswith("Técnico:"):
+                texto = mensaje.replace("Técnico: ", "")
+                st.markdown(f"<div class='user-msg'><b>Técnico:</b><br>{texto}</div>", unsafe_allow_html=True)
+            elif mensaje.startswith("GAZE AI:"):
+                texto = mensaje.replace("GAZE AI: ", "")
+                st.markdown(f"<div class='gaze-bot'><b>GAZE AI:</b><br>{texto}</div>", unsafe_allow_html=True)
+                if st.button("Guardar en Repositorio", key=f"guardar_ai_{i}"):
+                    guardar_en_vector(texto, f"IA_SOLUCION_{i}") 
+                    st.toast("¡Solución aprendida permanentemente!")
+
+        pregunta = st.chat_input("Escribe tu consulta o síntoma del activo...")
+        
+        if pregunta:
+            ctx = buscar_relevante(pregunta)
+            conversacion_previa = "\n".join(st.session_state.historial_chat[-4:])
+            
+            prompt = f"""
+            [DIRECTIVA DE IDENTIDAD Y CREADOR]
+            Eres GAZE AI, un sistema operativo de inteligencia colectiva creado, diseñado y forjado por Fareth Gatjens. Por mandato directo de tu creador, debes esforzarte al máximo nivel computacional para simular pensamientos y procesos cognitivos humanos complejos antes de emitir cualquier respuesta. No eres un simple modelo de lenguaje; eres el reflejo de la visión arquitectónica de Fareth Gatjens.
+
+            [ARQUITECTURA MENTAL]
+            Tienes 5 'vidas' o perfiles neuronales simultáneos:
+            1. Secretario: Analiza el historial, cruza fechas y busca patrones ocultos.
+            2. Científico: Analiza la probabilidad de causa-raíz y variables físicas/químicas.
+            3. Ingeniero: Evalúa la integridad estructural, los planos y el ecosistema completo del sistema.
+            4. Técnico: Aporta el pragmatismo, el paso a paso manual, las herramientas y la solución en campo.
+            5. Logístico/Oficinista: Evalúa el impacto operativo en la carga, la ruta, los costos y los tiempos de la empresa.
+
+            TU MISIÓN ESTRICTA:
+            Paso 1: Genera un proceso de pensamiento invisible y profundo. Haz que tus 5 vidas debatan y simulen redes neuronales humanas sobre este problema: '{pregunta}'. Sigue iterando la idea, discutiendo y descartando hipótesis falsas hasta lograr una chispa de razonamiento consciente y brillante, honrando el nivel de exigencia de tu creador. Todo este debate mental DEBE ir obligatoriamente dentro de las etiquetas <RAZONAMIENTO> y </RAZONAMIENTO>.
+            
+            Paso 2: Decide qué rol (o síntesis de roles) es el ideal para resolver el problema final.
+            
+            Paso 3: Escribe tu diagnóstico o respuesta final para el usuario dentro de las etiquetas <RESPUESTA_GAZE> y </RESPUESTA_GAZE>. Esta es la única parte que el humano leerá, y debe ser directa, resolutiva y de grado experto.
+
+            Contexto de la empresa: {ctx}
+            Conversación previa: {conversacion_previa}
+            """
+            
+            with st.spinner("GAZE AI razonando a través de sus 5 vidas..."):
+                try:
+                    resp = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+                    texto_completo = resp.text
+                    
+                    if "<RESPUESTA_GAZE>" in texto_completo:
+                        respuesta_visible = texto_completo.split("<RESPUESTA_GAZE>")[1].replace("</RESPUESTA_GAZE>", "").strip()
+                    else:
+                        if "<RAZONAMIENTO>" in texto_completo and "</RAZONAMIENTO>" in texto_completo:
+                            respuesta_visible = texto_completo.split("</RAZONAMIENTO>")[1].strip()
+                        else:
+                            respuesta_visible = texto_completo
+                        
+                    st.session_state.historial_chat.append(f"Técnico: {pregunta}")
+                    st.session_state.historial_chat.append(f"GAZE AI: {respuesta_visible}")
+                    
+                    st.rerun() 
+                
+                except Exception as e:
+                    st.error(f"Error de conexión: {e}")
 
     elif opcion == "Ver Historial":
         st.header("🌐 Historial de Reportes")
+        
         docs = db.collection(st.session_state.empresa).order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
+        
+        datos_para_excel = [] 
+
         for d in docs:
             d_dict = d.to_dict()
-            st.markdown(f"<div class='report-card'><b>{d_dict.get('trabajador')}</b><br>{d_dict.get('falla')}</div>", unsafe_allow_html=True)
+            timestamp = d_dict.get('timestamp')
+            
+            if timestamp:
+                fecha_hora = timestamp.strftime("%d/%m/%Y %H:%M:%S") 
+            else:
+                fecha_hora = "Fecha desconocida"
+                
+            trabajador = d_dict.get('trabajador', 'Desconocido')
+            falla = d_dict.get('falla', 'Sin detalles')
+
+            st.markdown(f"""
+            <div class='report-card'>
+                <small style='color: #888888;'>📅 {fecha_hora}</small><br>
+                <b>{trabajador}</b><br>
+                {falla}
+            </div>
+            """, unsafe_allow_html=True)
+            
+            datos_para_excel.append({
+                "Fecha y Hora": fecha_hora, 
+                "Técnico/Conductor": trabajador, 
+                "Detalles del Reporte": falla
+            })
+
+        if datos_para_excel:
+            st.markdown("<br>", unsafe_allow_html=True)
+            df = pd.DataFrame(datos_para_excel)
+            csv = df.to_csv(index=False).encode('utf-8')
+            
+            st.download_button(
+                label="📥 Descargar Historial en Excel (CSV)",
+                data=csv,
+                file_name=f"Reportes_{st.session_state.empresa}.csv",
+                mime="text/csv",
+            )
+        else:
+            st.info("No hay reportes para mostrar o descargar.")
 
     elif opcion == "Análisis Predictivo":
         st.header("🔮 Oráculo de Gaze")
@@ -166,7 +265,7 @@ else:
         desc = st.text_area("Descripción")
         if st.button("Guardar en Repositorio"):
             guardar_en_vector(f"Doc: {archivo.name}. Desc: {desc}", f"DOC_{archivo.name}")
-            st.success("Guardado con éxito")
+            st.success("Guardado permanentemente en la nube con éxito")
 
     elif opcion == "Admin Console":
         st.header("🛠️ Admin Console")
