@@ -231,7 +231,7 @@ else:
                 except Exception as e:
                     st.error(f"Error al generar el pronóstico: {e}")
 
-if opcion == "📁 Repositorio Empresarial":
+elif opcion == "📁 Repositorio Empresarial":
         st.header("📁 Repositorio Digital y Asistente Documental")
         st.write("Espacio exclusivo para empresarios: Sube documentos oficiales, manuales o instaladores.")
 
