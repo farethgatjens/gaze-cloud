@@ -11,7 +11,7 @@ client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Inicializar Pinecone (Reemplaza a ChromaDB)
 pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
-index = pc.Index("gaze-db")
+index = pc.Index("jupiter-db")
 
 if not firebase_admin._apps:
     try:
