@@ -120,10 +120,10 @@ else:
 
     menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
         
-        # Cambia este correo por tu correo real de administrador si lo deseas
-        if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
+    # Cambia este correo por tu correo real de administrador si lo deseas
+    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
             
-        opcion = st.sidebar.selectbox("Panel de Control", menu)
+    opcion = st.sidebar.selectbox("Panel de Control", menu)
 
     if opcion == "Registrar Falla":
         st.header("📝 Nuevo Reporte")
