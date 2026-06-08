@@ -281,6 +281,6 @@ if opcion == "Admin Console":
                 
                 if st.form_submit_button("Dar de Alta Empresa"):
                     # Tu lógica de creación aquí...
-                    st.success("Empresa creada.")
-    else:
+                    st.success("Empresa creada.")                                        
+else:
         st.error("⛔ Acceso denegado. Solo el administrador principal puede ver esta sección.")
