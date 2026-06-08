@@ -121,8 +121,7 @@ else:
 menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
     
     # Cambia este correo por tu correo real de administrador si lo deseas
-    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": 
-        menu.append("Admin Console")
+    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
         
     opcion = st.sidebar.selectbox("Panel de Control", menu)
 
@@ -269,7 +268,7 @@ elif opcion == "📁 Repositorio Empresarial":
                         st.write(resp_gerencia.text)
                     except Exception as e:
                         st.error(f"Error: {e}")
-                        
+
     elif opcion == "Admin Console":
         # Verificación de seguridad extra
         if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
