@@ -1,7 +1,7 @@
 streamlit
 firebase-admin
 google-genai
-pinecone-client
+pinecone
 pandas
 pydantic
 protobuf<=3.20.3
