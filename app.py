@@ -1,13 +1,13 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
-from google import genai
 import os
 import pandas as pd
 from pinecone import Pinecone 
 
 # --- INICIALIZACIÓN ---
-client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
+import google.generativeai as genai
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Inicializar Pinecone (Reemplaza a ChromaDB)
 pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
@@ -87,12 +87,11 @@ else:
     # ---------------------------------------------------------
     
     def guardar_en_vector(texto, id_unico): 
-        # Usamos Gemini para convertir el texto a números
-        respuesta = client.models.embed_content(
-            model="text-embedding-001", 
-            contents=texto
-        )
-        embedding = respuesta.embeddings[0].values
+        # Generar embedding con la librería clásica
+        embedding = genai.embed_content(
+            model="models/embedding-001", 
+            content=texto
+        )["embedding"]
         
         index.upsert(
             vectors=[{
@@ -100,18 +99,17 @@ else:
                 "values": embedding,
                 "metadata": {
                     "empresa": st.session_state.empresa, 
-                    "texto": texto # Usamos 'texto' como variable
+                    "texto": texto
                 }
             }]
         )
 
     def buscar_relevante(query): 
-        # Convertimos la pregunta de la IA a números para buscar
-        respuesta = client.models.embed_content(
-            model="text-embedding-001", 
-            contents=query
-        )
-        vector_pregunta = respuesta.embeddings[0].values
+        # Generar embedding de la pregunta
+        vector_pregunta = genai.embed_content(
+            model="models/embedding-001", 
+            content=query
+        )["embedding"]
         
         resultados = index.query(
             vector=vector_pregunta,
@@ -195,7 +193,8 @@ else:
             
             with st.spinner("GAZE AI razonando a través de sus 5 vidas..."):
                 try:
-                    resp = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
+                    modelo_chat = genai.GenerativeModel('gemini-2.5-flah')
+                    resp = modelo_chat.generate_content(prompt)  
                     texto_completo = resp.text
                     
                     if "<RESPUESTA_GAZE>" in texto_completo:
@@ -266,7 +265,12 @@ else:
         if st.button("Ejecutar Pronóstico"):
             docs = db.collection(st.session_state.empresa).limit(20).stream()
             hist = "\n".join([d.to_dict().get('falla', '') for d in docs])
-            resp = client.models.generate_content(model='gemini-2.5-flash', contents=f"Analiza: {hist}")
+            
+            # Usando la sintaxis estable de la nueva librería
+            modelo_oraculo = genai.GenerativeModel('gemini-2.5-flash')
+            prompt_oraculo = f"Eres un oráculo de mantenimiento industrial. Analiza este historial de fallas e identifica patrones y posibles problemas futuros: {hist}"
+            resp = modelo_oraculo.generate_content(prompt_oraculo)
+            
             st.info(resp.text)
 
     elif opcion == "📁 Repositorio Empresarial":
