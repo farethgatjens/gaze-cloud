@@ -269,7 +269,7 @@ if opcion == "📁 Repositorio Empresarial":
                     except Exception as e:
                         st.error(f"Error: {e}")
                         
- if opcion == "Admin Console":
+if opcion == "Admin Console":
         # Verificación de seguridad extra
         if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
             st.header("🛠️ Admin Console")
