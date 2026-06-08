@@ -268,19 +268,18 @@ elif opcion == "📁 Repositorio Empresarial":
                         st.write(resp_gerencia.text)
                     except Exception as e:
                         st.error(f"Error: {e}")
-
-    elif opcion == "Admin Console":
-        # Verificación de seguridad extra
-        if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
-            st.header("🛠️ Admin Console")
-            with st.form("admin_form"):
-                empresa_nombre = st.text_input("Nombre de la Empresa")
-                id_e = st.text_input("ID de la Empresa (sin espacios)")
-                email_adm = st.text_input("Email del Administrador")
-                pw_adm = st.text_input("Contraseña Temporal", type="password")
-                
-                if st.form_submit_button("Dar de Alta Empresa"):
-                    # Tu lógica de creación aquí...
-                    st.success("Empresa creada.")
+        elif opcion == "Admin Console":
+            # Verificación de seguridad extra
+            if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
+                st.header("🛠️ Admin Console")
+                with st.form("admin_form"):
+                    empresa_nombre = st.text_input("Nombre de la Empresa")
+                    id_e = st.text_input("ID de la Empresa (sin espacios)")
+                    email_adm = st.text_input("Email del Administrador")
+                    pw_adm = st.text_input("Contraseña Temporal", type="password")
+                    
+                    if st.form_submit_button("Dar de Alta Empresa"):
+                        # Tu lógica de creación aquí...
+                        st.success("Empresa creada.")
         else:
             st.error("⛔ Acceso denegado. Solo el administrador principal puede ver esta sección.")
