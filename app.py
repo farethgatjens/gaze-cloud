@@ -4,8 +4,6 @@ from firebase_admin import credentials, firestore, auth
 import os
 import pandas as pd
 from pinecone import Pinecone 
-
-# --- INICIALIZACIÓN ---
 import google.generativeai as genai
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
