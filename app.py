@@ -11,7 +11,7 @@ client = genai.Client(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Inicializar Pinecone (Reemplaza a ChromaDB)
 pc = Pinecone(api_key=st.secrets["PINECONE_API_KEY"])
-index = pc.Index("jupiterai")
+index = pc.Index("jupiter-db")
 
 if not firebase_admin._apps:
     try:
@@ -83,35 +83,45 @@ if not st.session_state.user_info:
 else:
    
     # ---------------------------------------------------------
-    # MEMORIA VECTORIAL (PINECONE - SERVERLESS INTEGRATED)
+    # MEMORIA VECTORIAL (PINECONE ESTÁNDAR + GEMINI)
     # ---------------------------------------------------------
     
     def guardar_en_vector(texto, id_unico): 
-        # Pinecone convierte el texto a vector automáticamente gracias a la configuración de NVIDIA
+        # Usamos Gemini para convertir el texto a números
+        respuesta = client.models.embed_content(
+            model="text-embedding-004", 
+            contents=texto
+        )
+        embedding = respuesta.embeddings[0].values
+        
         index.upsert(
             vectors=[{
                 "id": id_unico, 
+                "values": embedding,
                 "metadata": {
                     "empresa": st.session_state.empresa, 
-                    "text": texto 
+                    "texto": texto # Usamos 'texto' como variable
                 }
             }]
         )
 
     def buscar_relevante(query): 
-        # Pinecone realiza la búsqueda semántica directamente sobre el texto ingresado
+        # Convertimos la pregunta de la IA a números para buscar
+        respuesta = client.models.embed_content(
+            model="text-embedding-004", 
+            contents=query
+        )
+        vector_pregunta = respuesta.embeddings[0].values
+        
         resultados = index.query(
-            vector=None, 
+            vector=vector_pregunta,
             top_k=3,
             include_metadata=True,
-            filter={"empresa": {"$eq": st.session_state.empresa}},
-            namespace="",
-            input=query 
+            filter={"empresa": {"$eq": st.session_state.empresa}}
         )
         
         if resultados['matches']:
-            # Extraemos el texto de los resultados
-            contextos = [match['metadata']['text'] for match in resultados['matches']]
+            contextos = [match['metadata']['texto'] for match in resultados['matches']]
             return "\n".join(contextos)
         return "No hay historial."
 
