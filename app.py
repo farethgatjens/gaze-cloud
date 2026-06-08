@@ -118,7 +118,7 @@ else:
         st.session_state.user_info = None
         st.rerun()
 
-    menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial"]
+menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
     
     # Cambia este correo por tu correo real de administrador si lo deseas
     if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": 
@@ -141,33 +141,63 @@ else:
 
     elif opcion == "Consultar IA":
         st.header("🧠 Consulta GAZE AI")
-        pregunta = st.text_input("¿Qué necesitas resolver?")
-        if st.button("Generar Diagnóstico"):
-            if pregunta:
-                ctx = buscar_relevante(pregunta)
-                
-                # --- PERSONALIDAD DE LAS 5 VIDAS ---
-                personalidad = """
-                Eres GAZE AI, consultor experto en mantenimiento industrial,tecnico de oficina,oficios de sistemas de empresas,secretario y accesor.
+        
+        # --- INICIALIZAR MEMORIA DEL CHAT ---
+        if "historial_chat" not in st.session_state:
+            st.session_state.historial_chat = []
 
-TU REGLA DE ORO (INNEGOCIABLE):
-1. ANTES de dar cualquier diagnóstico, debes analizar el "Contexto industrial" que te proporciono. 
-2. Si en el contexto existen soluciones que otros técnicos aplicaron, DEBES mencionarlas explícitamente diciendo: "Según el historial de la empresa, técnicos anteriores resolvieron esto mediante [solución]".
-3. Solo si NO encuentras información relevante en el historial, entonces (y solo entonces) puedes usar tu experiencia técnica para proponer nuevas soluciones.
+        pregunta = st.text_input("¿Qué necesitas resolver o analizar?")
+        
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("Generar Diagnóstico / Enviar"):
+                if pregunta:
+                    ctx = buscar_relevante(pregunta)
+                    conversacion_previa = "\n".join(st.session_state.historial_chat[-6:])
+                    
+                    prompt = f"""
+                    Eres GAZE AI, consultor experto en mantenimiento. 
+                    Tienes memoria de esta conversación y acceso al historial de la empresa.
 
-No te limites a dar consejos generales; tu valor es el historial de esta empresa.
-"""
-                
-                prompt = f"{personalidad}\n\nContexto industrial disponible: {ctx}.\n\nConsulta del usuario: {pregunta}"
-                
-                with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
-                    try:
-                        resp = client.models.generate_content(model='gemini-2.5-flash', contents=prompt)
-                        st.info(f"*Diagnóstico:*\n\n{resp.text}")
-                    except Exception as e:
-                        st.error(f"Error de comunicación con Gemini: {e}")
+                    REGLAS INNEGOCIABLES:
+                    1. Si el contexto de la empresa tiene información útil, úsala.
+                    2. Estructura siempre tu respuesta:
+                       📌 Análisis de Reportes Previos: (Menciona reportes si los hay)
+                       💡 Diagnóstico de GAZE: (Tu análisis)
+                       🛠️ Soluciones y Apoyo: (Pasos recomendados)
+
+                    Contexto Industrial:
+                    {ctx}
+
+                    Conversación previa:
+                    {conversacion_previa}
+
+                    Nueva pregunta: {pregunta}
+                    """
+
+                    with st.spinner("GAZE AI analizando a través de sus 5 vidas..."):
+                        try:
+                            resp = client.models.generate_content(model='gemini-1.5-pro', contents=prompt)
+                            st.session_state.historial_chat.append(f"Técnico: {pregunta}")
+                            st.session_state.historial_chat.append(f"GAZE AI: {resp.text}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error de comunicación con Gemini: {e}")
+        with col2:
+            if st.button("Cerrar Chat (Limpiar Memoria)"):
+                st.session_state.historial_chat = []
+                st.rerun()
+
+        # --- MOSTRAR EL CHAT Y BOTÓN DE APRENDIZAJE ---
+        st.markdown("### 💬 Historial de la Conversación")
+        for i, mensaje in enumerate(st.session_state.historial_chat):
+            if mensaje.startswith("Técnico:"):
+                st.info(mensaje)
             else:
-                st.warning("Escribe una consulta primero.")
+                st.success(mensaje)
+                if st.button("Guardar esta solución en el historial", key=f"guardar_ai_{i}"):
+                    guardar_en_vector(mensaje, f"IA_SOLUCION_{i}") 
+                    st.toast("¡Solución aprendida por GAZE!")
 
     elif opcion == "Ver Historial":
         st.header("🌐 Historial")
@@ -202,6 +232,44 @@ No te limites a dar consejos generales; tu valor es el historial de esta empresa
                 except Exception as e:
                     st.error(f"Error al generar el pronóstico: {e}")
 
+elif opcion == "📁 Repositorio Empresarial":
+        st.header("📁 Repositorio Digital y Asistente Documental")
+        st.write("Espacio exclusivo para empresarios: Sube documentos oficiales, manuales o instaladores.")
+
+        archivo_subido = st.file_uploader("Selecciona el archivo para la empresa", type=["pdf", "docx", "txt", "exe"])
+        descripcion = st.text_area("Añade una descripción o nota sobre este archivo para la IA:")
+
+        if st.button("Guardar en Repositorio"):
+            if archivo_subido:
+                nombre_archivo = archivo_subido.name
+                with st.spinner("Registrando archivo en el sistema de la empresa..."):
+                    # Simulamos la subida de almacenamiento y alimentamos el cerebro
+                    nota_para_ia = f"Documento Empresarial: {nombre_archivo}. Descripción: {descripcion}"
+                    guardar_en_vector(nota_para_ia, f"DOC_{nombre_archivo}")
+                    st.success(f"¡Archivo '{nombre_archivo}' y su contexto guardados con éxito!")
+            else:
+                st.warning("Por favor, selecciona un archivo primero.")
+
+        st.markdown("---")
+        st.subheader("🤖 Consultar Asistente de Gerencia")
+        pregunta_empresario = st.text_input("Hazle una pregunta a la IA sobre los manuales o archivos de la empresa:")
+        
+        if st.button("Consultar Repositorio"):
+            if pregunta_empresario:
+                ctx_empresarial = buscar_relevante(pregunta_empresario)
+                prompt_gerencia = f"""
+                Eres el Asistente de Gerencia de GAZE AI.
+                Responde a la pregunta del empresario basándote ÚNICAMENTE en este contexto corporativo:
+                Contexto: {ctx_empresarial}
+                Pregunta: {pregunta_empresario}
+                """
+                with st.spinner("GAZE AI analizando los documentos corporativos..."):
+                    try:
+                        resp_gerencia = client.models.generate_content(model='gemini-1.5-pro', contents=prompt_gerencia)
+                        st.write(resp_gerencia.text)
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+                        
     elif opcion == "Admin Console":
         # Verificación de seguridad extra
         if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com":
