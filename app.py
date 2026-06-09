@@ -191,7 +191,7 @@ else:
             
             with st.spinner("GAZE AI razonando a través de sus 5 vidas..."):
                 try:
-                    modelo_chat = genai.GenerativeModel('gemini-2.5-flah')
+                    modelo_chat = genai.GenerativeModel('gemini-2.5-flash')
                     resp = modelo_chat.generate_content(prompt)  
                     texto_completo = resp.text
                     
