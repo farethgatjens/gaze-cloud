@@ -87,7 +87,7 @@ else:
     def guardar_en_vector(texto, id_unico): 
         # Generar embedding con la librería clásica
         embedding = genai.embed_content(
-            model="models/text-embedding-004", 
+            model="models/gemini-embedding-001", 
             content=texto
         )["embedding"]
         
@@ -105,7 +105,7 @@ else:
     def buscar_relevante(query): 
         # Generar embedding de la pregunta
         vector_pregunta = genai.embed_content(
-            model="models/text-embedding-004", 
+            model="models/gemini-embedding-001", 
             content=query
         )["embedding"]
         
