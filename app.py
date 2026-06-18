@@ -182,15 +182,13 @@ else:
         
     opcion = st.sidebar.selectbox("Panel de Control", menu)
 
-    if st.sidebar.button("Cerrar Sesión"): 
-        st.session_state.user_info = None
-        st.rerun()
+    
 
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
 
     # --- BARRA LATERAL ---
     st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
-   if st.sidebar.button("Cerrar Sesión", key="boton_cerrar_unico"): 
+    if st.sidebar.button("Cerrar Sesión", key="boton_cerrar_unico"): 
         st.session_state.user_info = None
         st.rerun()
 
