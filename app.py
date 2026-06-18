@@ -190,7 +190,7 @@ else:
 
     # --- BARRA LATERAL ---
     st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
-    if st.sidebar.button("Cerrar Sesión"): 
+   if st.sidebar.button("Cerrar Sesión", key="boton_cerrar_unico"): 
         st.session_state.user_info = None
         st.rerun()
 
