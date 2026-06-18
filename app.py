@@ -271,7 +271,7 @@ else:
                 except Exception as e:
                     st.error(f"Error de conexión: {e}")
 
-    elif opcion == "Ver Historial":
+    elif opcion == "Ver Reportes":
         st.header("🌐 Historial de Reportes")
         
         docs = db.collection(st.session_state.empresa).order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
