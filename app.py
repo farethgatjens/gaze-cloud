@@ -192,11 +192,6 @@ else:
         st.session_state.user_info = None
         st.rerun()
 
-    menu = ["Registrar Falla", "Consultar IA", "Análisis Predictivo", "Ver Historial", "📁 Repositorio Empresarial"]
-    if st.session_state.user_info.get('email') == "gatjensdaniel@gmail.com": menu.append("Admin Console")
-    opcion = st.sidebar.selectbox("Panel de Control", menu)
-
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
 
     if opcion == "Registrar Falla":
         st.header("📝 Nuevo Reporte")
