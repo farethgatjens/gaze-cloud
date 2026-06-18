@@ -60,66 +60,133 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 
-# --- LOGIN ---
+# --- LOGIN Y REGISTRO (SISTEMA DE SEGURIDAD Y COBRO) ---
 if not st.session_state.user_info:
-    c1, c2, c3 = st.columns([1, 2, 1])
-    with c2:
-        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-        st.markdown("<h1 style='text-align: center;'>🔐 GAZE Cloud</h1>", unsafe_allow_html=True)
-        email = st.text_input("Correo Electrónico")
-        pw = st.text_input("Contraseña", type="password")
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>🔐 GAZE Cloud</h1>", unsafe_allow_html=True)
+    
+    tab_login, tab_registro = st.tabs(["Iniciar Sesión", "Registrar Nuevo Usuario"])
+    
+    # --- INICIAR SESIÓN ---
+    with tab_login:
+        st.subheader("💻 Ingreso al Sistema")
+        email = st.text_input("Correo Electrónico", key="log_email")
+        pw = st.text_input("Contraseña", type="password", key="log_pw")
+        
         if st.button("ACCEDER AL SISTEMA"):
             usuarios = db.collection("usuarios").where("email", "==", email).stream()
+            usuario_encontrado = False
+            
             for u in usuarios:
-                st.session_state.user_info = u.to_dict()
-                st.session_state.empresa = u.to_dict()['empresa_id']
-                st.rerun()
-            st.warning("Credenciales incorrectas.")
-        st.markdown("</div>", unsafe_allow_html=True)
+                datos_u = u.to_dict()
+                if datos_u.get("password") == pw:
+                    usuario_encontrado = True
+                    st.session_state.user_info = datos_u
+                    st.session_state.empresa = datos_u.get('empresa_id')
+                    # Capturamos el ROL exacto del usuario al iniciar sesión
+                    st.session_state.usuario_rol = datos_u.get('sector', 'Técnico') 
+                    st.rerun()
+            
+            if not usuario_encontrado:
+                st.error("Credenciales incorrectas o usuario no registrado.")
 
-# --- PANEL PRINCIPAL ---
-else:
-   
-    # ---------------------------------------------------------
-    # MEMORIA VECTORIAL (PINECONE ESTÁNDAR + GEMINI)
-    # ---------------------------------------------------------
-    
-    def guardar_en_vector(texto, id_unico): 
-        # Generar embedding con la librería clásica
-        embedding = genai.embed_content(
-            model="models/gemini-embedding-001", 
-            content=texto
-        )["embedding"]
+    # --- REGISTRO CON LÍMITE DE COBRO ---
+    with tab_registro:
+        st.subheader("📝 Registro de Personal")
+        nuevo_nombre = st.text_input("Nombre del Empleado")
+        nuevo_email = st.text_input("Correo Electrónico Corporativo")
+        nueva_pw = st.text_input("Contraseña", type="password")
+        id_empresa = st.text_input("ID de la Empresa (Otorgado por Gerencia)")
         
+        # Aquí definimos los ROLES CORPORATIVOS
+        sector_seleccionado = st.selectbox(
+            "Seleccione su Rol en la Empresa",
+            ["Técnico", "Administrativo", "CEO / Director"]
+        )
+        
+        if st.button("Crear Cuenta"):
+            if nuevo_nombre and nuevo_email and nueva_pw and id_empresa:
+                usuarios_actuales = db.collection("usuarios").where("empresa_id", "==", id_empresa).stream()
+                cantidad_usuarios = sum(1 for _ in usuarios_actuales)
+                LIMITE_PLAN_BASE = 30
+                
+                if cantidad_usuarios >= LIMITE_PLAN_BASE:
+                    st.error(f"🚨 LÍMITE ALCANZADO: {LIMITE_PLAN_BASE} usuarios activos.")
+                    st.warning("Debe autorizar la expansión de asientos ($70 USD/usuario).")
+                else:
+                    db.collection("usuarios").document().set({
+                        "nombre": nuevo_nombre,
+                        "email": nuevo_email,
+                        "password": nueva_pw,
+                        "empresa_id": id_empresa,
+                        "sector": sector_seleccionado
+                    })
+                    st.success("✅ Cuenta creada. Ya puede Iniciar Sesión.")
+            else:
+                st.error("Complete todos los campos.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# --- PANEL PRINCIPAL (CON SILOS DE DATOS Y RBAC) ---
+else:
+    # ---------------------------------------------------------
+    # MEMORIA VECTORIAL AISLADA (PINECONE)
+    # ---------------------------------------------------------
+    def guardar_en_vector(texto, id_unico): 
+        embedding = genai.embed_content(model="models/gemini-embedding-001", content=texto)["embedding"]
         index.upsert(
             vectors=[{
                 "id": id_unico, 
                 "values": embedding,
-                "metadata": {
-                    "empresa": st.session_state.empresa, 
-                    "texto": texto
+               "metadata": {
+                    "empresa": str(st.session_state.empresa),
+                    "sector": str(st.session_state.usuario_rol),
+                    "texto": str(texto)
+                }
                 }
             }]
         )
 
     def buscar_relevante(query): 
-        # Generar embedding de la pregunta
-        vector_pregunta = genai.embed_content(
-            model="models/gemini-embedding-001", 
-            content=query
-        )["embedding"]
-        
+        vector_pregunta = genai.embed_content(model="models/gemini-embedding-001", content=query)["embedding"]
+        # LA IA SOLO BUSCA EN LOS ARCHIVOS DE SU MISMO SECTOR
         resultados = index.query(
             vector=vector_pregunta,
             top_k=3,
             include_metadata=True,
-            filter={"empresa": {"$eq": st.session_state.empresa}}
+            filter={
+                "empresa": {"$eq": st.session_state.empresa},
+                "sector": {"$eq": st.session_state.usuario_rol} # <- EL SILO DE LECTURA ESTÁ AQUÍ
+            }
         )
-        
         if resultados['matches']:
             contextos = [match['metadata']['texto'] for match in resultados['matches']]
             return "\n".join(contextos)
-        return "No hay historial."
+        return "No hay historial en este departamento."
+
+    # --- ENRUTADOR DE MENÚS (RBAC) ---
+    rol_actual = st.session_state.usuario_rol
+    correo_actual = st.session_state.user_info.get('email')
+    
+    st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
+    st.sidebar.caption(f"Rol Activo: {rol_actual}")
+    
+    # Asignación estricta de menús
+    if correo_actual == "gatjensdaniel@gmail.com":
+        menu = ["Registrar Falla", "Consultar IA", "Ver Reportes", "Análisis Predictivo", "Repositorio Digital", "Admin Console"]
+    elif rol_actual == "CEO / Director":
+        menu = ["Consultar IA", "Ver Reportes", "Análisis Predictivo", "Repositorio Digital"]
+    elif rol_actual == "Administrativo":
+        menu = ["Registrar Falla", "Consultar IA", "Ver Reportes", "Repositorio Digital"]
+    else: # Técnico por defecto
+        menu = ["Registrar Falla", "Consultar IA", "Ver Reportes"]
+        
+    opcion = st.sidebar.selectbox("Panel de Control", menu)
+
+    if st.sidebar.button("Cerrar Sesión"): 
+        st.session_state.user_info = None
+        st.rerun()
+
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
 
     # --- BARRA LATERAL ---
     st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
