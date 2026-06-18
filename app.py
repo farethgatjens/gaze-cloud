@@ -331,7 +331,7 @@ else:
             
             st.info(resp.text)
 
-    elif opcion == "📁 Repositorio Empresarial":
+    elif opcion == "Repositorio Digital":
         st.header("📁 Repositorio Digital")
         archivo = st.file_uploader("Subir Archivo", type=["pdf", "txt", "docx"])
         desc = st.text_area("Descripción")
