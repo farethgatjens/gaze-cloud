@@ -141,7 +141,7 @@ else:
                     "empresa": str(st.session_state.empresa),
                     "sector": str(st.session_state.usuario_rol),
                     "texto": str(texto)
-                }
+                
                 }
             }]
         )
