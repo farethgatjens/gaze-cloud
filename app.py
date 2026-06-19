@@ -62,69 +62,78 @@ st.markdown("""
 
 # --- LOGIN Y REGISTRO (SISTEMA DE SEGURIDAD Y COBRO) ---
 if not st.session_state.user_info:
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center;'>🔐 GAZE Cloud</h1>", unsafe_allow_html=True)
-    
-    tab_login, tab_registro = st.tabs(["Iniciar Sesión", "Registrar Nuevo Usuario"])
-    
-    # --- INICIAR SESIÓN ---
-    with tab_login:
-        st.subheader("💻 Ingreso al Sistema")
-        email = st.text_input("Correo Electrónico", key="log_email")
-        pw = st.text_input("Contraseña", type="password", key="log_pw")
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align: center;'>🔐 GAZE Cloud</h1>", unsafe_allow_html=True)
         
-        if st.button("ACCEDER AL SISTEMA"):
-            usuarios = db.collection("usuarios").where("email", "==", email).stream()
-            usuario_encontrado = False
+        tab_login, tab_registro = st.tabs(["Iniciar Sesión", "Registrar Nuevo Usuario"])
+        
+        # --- INICIAR SESIÓN ---
+        with tab_login:
+            st.subheader("💻 Ingreso al Sistema")
+            email = st.text_input("Correo Electrónico", key="log_email")
+            pw = st.text_input("Contraseña", type="password", key="log_pw")
             
-            for u in usuarios:
-                datos_u = u.to_dict()
-                if datos_u.get("password") == pw:
-                    usuario_encontrado = True
-                    st.session_state.user_info = datos_u
-                    st.session_state.empresa = datos_u.get('empresa_id')
-                    # Capturamos el ROL exacto del usuario al iniciar sesión
-                    st.session_state.usuario_rol = datos_u.get('sector', 'Técnico') 
-                    st.rerun()
-            
-            if not usuario_encontrado:
-                st.error("Credenciales incorrectas o usuario no registrado.")
-
-    # --- REGISTRO CON LÍMITE DE COBRO ---
-    with tab_registro:
-        st.subheader("📝 Registro de Personal")
-        nuevo_nombre = st.text_input("Nombre del Empleado")
-        nuevo_email = st.text_input("Correo Electrónico Corporativo")
-        nueva_pw = st.text_input("Contraseña", type="password")
-        id_empresa = st.text_input("ID de la Empresa (Otorgado por Gerencia)")
-        
-        # Aquí definimos los ROLES CORPORATIVOS
-        sector_seleccionado = st.selectbox(
-            "Seleccione su Rol en la Empresa",
-            ["Técnico", "Administrativo", "CEO / Director" , "Nuevo ingreso"]
-        )
-        
-        if st.button("Crear Cuenta"):
-            if nuevo_nombre and nuevo_email and nueva_pw and id_empresa:
-                usuarios_actuales = db.collection("usuarios").where("empresa_id", "==", id_empresa).stream()
-                cantidad_usuarios = sum(1 for _ in usuarios_actuales)
-                LIMITE_PLAN_BASE = 30
-                
-                if cantidad_usuarios >= LIMITE_PLAN_BASE:
-                    st.error(f"🚨 LÍMITE ALCANZADO: {LIMITE_PLAN_BASE} usuarios activos.")
-                    st.warning("Debe autorizar la expansión de asientos ($70 USD/usuario).")
+            if st.button("ACCEDER AL SISTEMA"):
+                user_ref = db.collection("usuarios").document(email.lower().strip()).get()
+                if user_ref.exists:
+                    datos_usuario = user_ref.to_dict()
+                    if datos_usuario.get("password") == pw:
+                        st.session_state.user_info = datos_usuario
+                        st.session_state.empresa = datos_usuario['empresa_id']
+                        st.rerun()
+                    else:
+                        st.error("❌ Contraseña incorrecta.")
                 else:
-                    db.collection("usuarios").document().set({
-                        "nombre": nuevo_nombre,
-                        "email": nuevo_email,
-                        "password": nueva_pw,
-                        "empresa_id": id_empresa,
-                        "sector": sector_seleccionado
-                    })
-                    st.success("✅ Cuenta creada. Ya puede Iniciar Sesión.")
-            else:
-                st.error("Complete todos los campos.")
-    st.markdown("</div>", unsafe_allow_html=True)
+                    st.warning("⚠️ El correo no está registrado en el sistema.")
+                    
+        # --- REGISTRO CON LÍMITE DE COBRO Y VALIDACIÓN DE EMPRESA ---
+        with tab_registro:
+            st.subheader("📝 Registro de Personal")
+            nuevo_nombre = st.text_input("Nombre del Empleado")
+            nuevo_email = st.text_input("Correo Electrónico Corporativo")
+            nueva_pw = st.text_input("Contraseña", type="password")
+            id_empresa = st.text_input("ID de la Empresa (Otorgado por Gerencia)").upper().strip()
+            
+            # Tus roles corporativos intactos
+            sector_seleccionado = st.selectbox(
+                "Seleccione su Rol en la Empresa",
+                ["Técnico", "Administrativo", "CEO / Director", "Nuevo ingreso"]
+            )
+            
+            if st.button("Crear Cuenta"):
+                if nuevo_nombre and nuevo_email and nueva_pw and id_empresa:
+                    
+                    # 1. PRIMER FILTRO: Verificar que la empresa exista en la base de datos
+                    empresa_doc = db.collection("empresas").document(id_empresa).get()
+                    
+                    if not empresa_doc.exists:
+                        st.error("❌ ID de empresa inválido o no registrado. Contacte a su gerencia.")
+                    else:
+                        # 2. SEGUNDO FILTRO: Tu lógica de límite de usuarios
+                        usuarios_actuales = db.collection("usuarios").where("empresa_id", "==", id_empresa).stream()
+                        cantidad_usuarios = sum(1 for _ in usuarios_actuales)
+                        LIMITE_PLAN_BASE = 30
+                        
+                        if cantidad_usuarios >= LIMITE_PLAN_BASE:
+                            st.error(f"🚨 LÍMITE ALCANZADO: El plan actual solo permite {LIMITE_PLAN_BASE} usuarios para esta empresa.")
+                        else:
+                            # 3. CREACIÓN EXITOSA
+                            nombre_empresa_real = empresa_doc.to_dict().get("nombre_empresa", "Empresa Validada")
+                            
+                            db.collection("usuarios").document(nuevo_email.lower().strip()).set({
+                                "nombre": nuevo_nombre,
+                                "email": nuevo_email.lower().strip(),
+                                "password": nueva_pw,
+                                "empresa_id": id_empresa,
+                                "rol": sector_seleccionado.lower() # En minúscula para que el prompt de Gaze AI no falle
+                            })
+                            st.success(f"✅ Vinculado con éxito a {nombre_empresa_real}. ¡Ya puedes iniciar sesión!")
+                else:
+                    st.warning("⚠️ Por favor, completa todos los campos.")
+                    
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- PANEL PRINCIPAL (CON SILOS DE DATOS Y RBAC) ---
 else:
@@ -177,7 +186,7 @@ else:
         menu = ["Consultar IA", "Ver Reportes", "Análisis Predictivo", "Repositorio Digital"]
     elif rol_actual == "Administrativo":
         menu = ["Registrar Falla", "Consultar IA", "Ver Reportes", "Repositorio Digital"]
-    elif rol_actual == "Nuevo Ingreso":  # <-- NUEVO BLOQUE
+    elif rol_actual == "Nuevo ingreso":  # <-- NUEVO BLOQUE
         menu = ["Consultar IA", "Repositorio Digital"]
     else: # Técnico por defecto
         menu = ["Registrar Falla", "Consultar IA", "Ver Reportes"]
@@ -357,13 +366,20 @@ else:
             st.success("Guardado permanentemente en la nube con éxito")
 
     elif opcion == "Admin Console":
-        st.header("🛠️ Admin Console")
+        st.header("🛠️ Admin Console - Registro de Organizaciones")
         with st.form("admin_form"):
-            empresa_nombre = st.text_input("Nombre de la Empresa")
-            id_e = st.text_input("ID de la Empresa")
-            email_adm = st.text_input("Email del Admin")
-            pw_adm = st.text_input("Contraseña Temporal", type="password")
+            empresa_nombre = st.text_input("Nombre de la Empresa (Ej: Grupo Rolan)")
+            id_e = st.text_input("ID de la Empresa a Generar (Ej: ROLAN-77X)").upper().strip()
+            
             if st.form_submit_button("Dar de Alta Empresa"):
-                st.success("Empresa creada correctamente.")
+                if empresa_nombre and id_e:
+                    # Guardamos la empresa en una colección maestra llamada "empresas"
+                    db.collection("empresas").document(id_e).set({
+                        "nombre_empresa": empresa_nombre,
+                        "timestamp": firestore.SERVER_TIMESTAMP
+                    })
+                    st.success(f"🏢 Empresa '{empresa_nombre}' registrada con éxito. El ID '{id_e}' ya es real y válido.")
+                else:
+                    st.error("❌ Debes ingresar tanto el nombre como el ID único de la empresa.")
     
     st.markdown("</div>", unsafe_allow_html=True)
