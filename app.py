@@ -81,7 +81,13 @@ if not st.session_state.user_info:
                     datos_usuario = user_ref.to_dict()
                     if datos_usuario.get("password") == pw:
                         st.session_state.user_info = datos_usuario
-                        st.session_state.empresa = datos_usuario['empresa_id']
+                        
+                        # Usamos .get() por seguridad para evitar errores
+                        st.session_state.empresa = datos_usuario.get('empresa_id', '')
+                        
+                        # ➡️ ESTA ES LA LÍNEA QUE TIENES QUE AGREGAR:
+                        st.session_state.usuario_rol = datos_usuario.get('rol', '')
+                        
                         st.rerun()
                     else:
                         st.error("❌ Contraseña incorrecta.")
