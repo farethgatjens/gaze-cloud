@@ -101,7 +101,7 @@ if not st.session_state.user_info:
         # Aquí definimos los ROLES CORPORATIVOS
         sector_seleccionado = st.selectbox(
             "Seleccione su Rol en la Empresa",
-            ["Técnico", "Administrativo", "CEO / Director"]
+            ["Técnico", "Administrativo", "CEO / Director" , "Nuevo ingreso"]
         )
         
         if st.button("Crear Cuenta"):
@@ -177,6 +177,8 @@ else:
         menu = ["Consultar IA", "Ver Reportes", "Análisis Predictivo", "Repositorio Digital"]
     elif rol_actual == "Administrativo":
         menu = ["Registrar Falla", "Consultar IA", "Ver Reportes", "Repositorio Digital"]
+    elif rol_actual == "Nuevo Ingreso":  # <-- NUEVO BLOQUE
+        menu = ["Consultar IA", "Repositorio Digital"]
     else: # Técnico por defecto
         menu = ["Registrar Falla", "Consultar IA", "Ver Reportes"]
         
@@ -187,7 +189,6 @@ else:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
 
     # --- BARRA LATERAL ---
-    st.sidebar.success(f"Hola, {st.session_state.user_info['nombre']}")
     if st.sidebar.button("Cerrar Sesión", key="boton_cerrar_unico"): 
         st.session_state.user_info = None
         st.rerun()
@@ -225,6 +226,22 @@ else:
         if pregunta:
             ctx = buscar_relevante(pregunta)
             conversacion_previa = "\n".join(st.session_state.historial_chat[-4:])
+            
+            # --- DEFINICIÓN DINÁMICA DEL PROMPT SEGÚN EL ROL ---
+            if rol_actual == "Nuevo Ingreso":
+                # Prompt exclusivo para nuevos empleados
+                prompt = f"""
+                Eres GAZE AI, el tutor principal y guía de inducción de la empresa.
+                Tu misión es recibir al nuevo empleado con amabilidad, paciencia y claridad.
+                Explícale cómo funciona la empresa, cómo usar esta plataforma, resuelve sus dudas
+                sobre procesos industriales básicos y acompáñalo en su proceso de adaptación.
+                Mantén un tono muy acogedor pero profesional.
+                
+                Contexto de la empresa: {ctx}
+                Conversación previa: {conversacion_previa}
+                Pregunta del nuevo ingreso: {pregunta}
+                """
+            else:
             
             prompt = f"""
             [DIRECTIVA DE IDENTIDAD Y CREADOR]
