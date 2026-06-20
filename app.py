@@ -279,7 +279,17 @@ else:
 
                 Contexto de la empresa: {ctx}
                 Conversación previa: {conversacion_previa}
-                """
+                
+                FORMATO ESTRICTO DE RESPUESTA (No uses otros títulos, usa obligatoriamente estas etiquetas):
+
+<RAZONAMIENTO>
+(Escribe aquí todo tu debate interno, análisis y la elección del rol)
+</RAZONAMIENTO>
+
+<RESPUESTA_GAZE>
+(Escribe aquí tu respuesta final y directa para el usuario)
+</RESPUESTA_GAZE>
+"""
                 
             with st.spinner("GAZE AI razonando a través de sus 5 vidas..."):
                 try:
