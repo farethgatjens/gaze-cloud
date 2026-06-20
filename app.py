@@ -3,6 +3,7 @@ import firebase_admin
 from firebase_admin import credentials, firestore, auth
 import os
 import pandas as pd
+import PyPDF2
 from pinecone import Pinecone 
 import google.generativeai as genai
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
