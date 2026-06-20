@@ -381,7 +381,7 @@ else:
             st.info(resp.text)
 
    elif opcion == "Repositorio Digital":
-        st.header("📁 Repositorio Digital Empresarial")
+        st.header("📁 Repositorio Digital")
         st.write("Sube documentos técnicos, manuales o guías de inducción para alimentar la memoria de la IA.")
 
         sector_destino = st.selectbox(
