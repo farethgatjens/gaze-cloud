@@ -381,7 +381,7 @@ else:
             
             st.info(resp.text)
 
-   elif opcion == "Repositorio Digital":
+    elif opcion == "Repositorio Digital":
         st.header("📁 Repositorio Digital")
         st.write("Sube documentos técnicos, manuales o guías de inducción para alimentar la memoria de la IA.")
 
@@ -390,7 +390,6 @@ else:
             ["Nuevo Ingreso", "Técnico", "Administrativo", "CEO / Director"]
         )
 
-        # 1. Actualizamos el texto para indicar la capacidad máxima de 200 MB
         uploaded_file = st.file_uploader(
             "Selecciona un archivo (.txt, .pdf, .xlsx) [Máx. 200 MB]", 
             type=["txt", "pdf", "xlsx", "xls"]
@@ -400,12 +399,10 @@ else:
             try:
                 text = ""
                 
-                # --- EXTRACCIÓN DE TEXTO SEGÚN EL TIPO DE ARCHIVO ---
                 if uploaded_file.name.endswith(".txt"):
                     text = uploaded_file.read().decode("utf-8")
                 
                 elif uploaded_file.name.endswith(".pdf"):
-                    import PyPDF2
                     pdf_reader = PyPDF2.PdfReader(uploaded_file)
                     for page in pdf_reader.pages:
                         texto_pagina = page.extract_text()
@@ -413,16 +410,41 @@ else:
                             text += texto_pagina + "\n"
                             
                 elif uploaded_file.name.endswith((".xlsx", ".xls")):
-                    import pandas as pd
-                    # Leer el Excel completo
                     df = pd.read_excel(uploaded_file)
-                    # Convertir toda la tabla de datos a un bloque de texto (string)
-                    # index=False evita que se agregue una columna extra de números
                     text = df.to_string(index=False)
-                # ----------------------------------------------------
 
                 if not text.strip():
                     st.error("No se pudo extraer texto del archivo. Verifica que no esté vacío.")
+                    st.stop()
+
+                st.info("Procesando documento y generando fragmentos vectoriales...")
+                
+                chunks = [text[i:i+500] for i in range(0, len(text), 500)]
+                progreso = st.progress(0)
+                total_chunks = len(chunks)
+
+                for i, frag in enumerate(chunks):
+                    # --- AQUÍ ESTÁ LA CORRECCIÓN CLAVE PARA GEMINI ---
+                    vector = genai.embed_content(model="models/gemini-embedding-001", content=frag)["embedding"]
+                    
+                    nombre_limpio = uploaded_file.name.replace(" ", "").replace(".", "")
+                    vector_id = f"{st.session_state.empresa}{nombre_limpio}_frag{i}"
+                    
+                    index.upsert(vectors=[(
+                        vector_id, 
+                        vector, 
+                        {
+                            "texto": frag, 
+                            "empresa": st.session_state.empresa, 
+                            "sector": sector_destino
+                        }
+                    )])
+                    progreso.progress((i + 1) / total_chunks)
+                    
+                st.success(f"¡Éxito! El documento '{uploaded_file.name}' fue indexado correctamente en el silo de '{sector_destino}'.")
+                
+            except Exception as e:
+                st.error(f"Error crítico al procesar o subir el archivo: {e}")
 
     elif opcion == "Admin Console":
         st.header("🛠️ Admin Console - Registro de Organizaciones")
