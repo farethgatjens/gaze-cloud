@@ -164,14 +164,17 @@ else:
 
     def buscar_relevante(query): 
         vector_pregunta = genai.embed_content(model="models/gemini-embedding-001", content=query)["embedding"]
-        # LA IA SOLO BUSCA EN LOS ARCHIVOS DE SU MISMO SECTOR
+        
+        # Forzamos que el rol de la sesión se evalúe en minúsculas y sin espacios extras
+        rol_busqueda = str(st.session_state.usuario_rol).lower().strip()
+        
         resultados = index.query(
             vector=vector_pregunta,
             top_k=3,
             include_metadata=True,
             filter={
                 "empresa": {"$eq": st.session_state.empresa},
-                "sector": {"$eq": st.session_state.usuario_rol} # <- EL SILO DE LECTURA ESTÁ AQUÍ
+                "sector": {"$eq": rol_busqueda}  # <-- Filtro corregido dinámico
             }
         )
         if resultados['matches']:
