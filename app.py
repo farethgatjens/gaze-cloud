@@ -244,8 +244,7 @@ else:
             conversacion_previa = "\n".join(st.session_state.historial_chat[-4:])
 
             # --- DEFINICIÓN DINÁMICA DEL PROMPT SEGÚN EL ROL ---
-            if rol_actual == "Nuevo Ingreso":
-                # Prompt exclusivo para nuevos empleados
+            if rol_actual.lower() == "nuevo ingreso":
                 prompt = f"""
                 Eres GAZE AI, el tutor principal y guía de inducción de la empresa.
                 Tu misión es recibir al nuevo empleado con amabilidad, paciencia y claridad.
@@ -253,17 +252,19 @@ else:
                 sobre procesos industriales básicos y acompáñalo en su proceso de adaptación.
                 Mantén un tono muy acogedor pero profesional.
                 
-                Contexto de la empresa: {ctx}
+                Contexto de la empresa (Usa esto para responder): {ctx}
                 Conversación previa: {conversacion_previa}
                 Pregunta del nuevo ingreso: {pregunta}
-<RAZONAMIENTO
-(Escribe aquí todo tu debate interno, análisis y la elección del rol)
-</RAZONAMIENTO>
 
-<RESPUESTA_GAZE>
-(Escribe aquí tu respuesta final y directa para el usuario)
-</RESPUESTA_GAZE>
-"""
+                FORMATO ESTRICTO DE RESPUESTA (Debes generar tu respuesta usando obligatoriamente estas etiquetas):
+                <RAZONAMIENTO>
+                Escribe aquí tu análisis interno de la pregunta.
+                </RAZONAMIENTO>
+                
+                <RESPUESTA_GAZE>
+                Escribe aquí tu respuesta final, amable y directa para el usuario.
+                </RESPUESTA_GAZE>
+                """
             else:
             
                 prompt = f"""
