@@ -255,7 +255,14 @@ else:
                 Contexto de la empresa: {ctx}
                 Conversación previa: {conversacion_previa}
                 Pregunta del nuevo ingreso: {pregunta}
-                """
+<RAZONAMIENTO
+(Escribe aquí todo tu debate interno, análisis y la elección del rol)
+</RAZONAMIENTO>
+
+<RESPUESTA_GAZE>
+(Escribe aquí tu respuesta final y directa para el usuario)
+</RESPUESTA_GAZE>
+"""
             else:
             
                 prompt = f"""
