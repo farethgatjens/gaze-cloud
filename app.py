@@ -441,7 +441,7 @@ else:
                         {
                             "texto": frag, 
                             "empresa": st.session_state.empresa, 
-                            "sector": sector_destino
+                            "sector": sector_destino.lower().strip()
                         }
                     )])
                     progreso.progress((i + 1) / total_chunks)
